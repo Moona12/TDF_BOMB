@@ -65,8 +65,7 @@ char password[MAX_PASSWORD_LENGTH] = {'-','-','-','-','-','-'};
 char clear_password[MAX_PASSWORD_LENGTH] = {'-','-','-','-','-','-'};
 char confirm[MAX_PASSWORD_LENGTH] = {'-','-','-','-','-','-'};
 
-long second = 0;
-long currentTime = 0;
+long timeSet = 0;
 
 int outputTime[] = { 0, 0 };
 
@@ -172,8 +171,8 @@ int setTime( char key ) {
             ++initTime;
         } else {
             initTime = 0;
-            outputTime[0] = ((int)((char)time[0])*10) + (int)((char)time[1]);
-            outputTime[1] = ((int)((char)time[2])*10) + (int)((char)time[3]);
+            outputTime[1] = ((int)((char)time[0])*10) + (int)((char)time[1]);
+            outputTime[0] = ((int)((char)time[2])*10) + (int)((char)time[3]);
             display.showNumberDecEx(outputTime[0], 0, true, 2, 2);
             display.showNumberDecEx(outputTime[1], (0x80 >> 1), true, 2, 0);
             //display.setSegments(outputTime);
@@ -259,7 +258,7 @@ void displayPrint() {
             delay(1000);
             noTone(SOUND_MODULE);
             state = STATE_TIMEBOMB_RUN_BOMB;
-            currentTime = millis();
+            timeSet = millis();
             isActiveTimer = true;
             displayPrint();
             break;
@@ -375,16 +374,16 @@ int keyboardScanner( char key ) {
 }
 
 
-
+int count = 0;
 void timeDisplay() {
     static int speed = 1000;
     static int degree = 1;
     static int step = 0;
     static int stepBuffer = 0;
-    second = (millis() - currentTime) / (speed/degree);
-    stepBuffer = second % 2;
-    Serial.println( "stepBuffer : " + (String)stepBuffer + ", millis() : " + millis() + ", second : " + (String)second + 
-    ", out: " + (String)outputTime[0] + " : " + (String)outputTime[1] );
+    count = (millis() - timeSet) / (speed/degree);
+    stepBuffer = count % 2;
+    // Serial.println( "stepBuffer : " + (String)stepBuffer + ", millis() : " + ((millis() - timeSet) % 1000) + ", count : " + (String)count + 
+    // ", out: " + (String)outputTime[0] + " : " + (String)outputTime[1] );
 
     if ( stepBuffer == 1 && step == 0 ) {
         tone(SOUND_MODULE, 5000);
@@ -394,21 +393,23 @@ void timeDisplay() {
     } else if ( stepBuffer == 0 && step == 1 ) {
         step = 0;
     }
-    display.showNumberDecEx(outputTime[0], 0, true, 2, 2);
-    display.showNumberDecEx(outputTime[1], (0x80 >> 1), true, 2, 0);
+    int sec = outputTime[0] - (count % 60);
+    int min = outputTime[1] - (((count - outputTime[0]) + 60) / 60);
+    if ( sec < 0 ) {
+        sec += 60;
+        sec = sec % 60;
+    }
+    Serial.println( (String)min + ":" + (String)sec + "," + (String)count );
+    display.showNumberDecEx(sec, 0, true, 2, 2);
+    display.showNumberDecEx(min, (0x80 >> 1), true, 2, 0);
 }
 
 void setup() {
     lcd.init();
     lcd.backlight();
     pinMode(SOUND_MODULE, OUTPUT);
+    noTone(SOUND_MODULE);
     display.setBrightness(0x0f);
-    
-    data[0] = display.encodeDigit(0);
-    data[1] = display.encodeDigit(0);
-    data[2] = display.encodeDigit(0);
-    data[3] = display.encodeDigit(0);
-    display.setSegments(data);
 
     Serial.begin(9600);
     Serial.println("Ready to BOMB");
